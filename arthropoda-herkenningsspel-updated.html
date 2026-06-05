@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Arthropoda-herkenningsspel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 12px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+      width: 100%;
+      max-width: 860px;
+      padding: 28px 30px;
+      margin-bottom: 16px;
+    }
+
+    /* ── SETUP ── */
+    #setup h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    #setup > p { color: #666; font-size: 14px; margin-bottom: 20px; }
+
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
+    }
+    .filter-bar label { font-size: 13px; font-weight: 600; color: #555; }
+    .filter-bar select {
+      padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 13px; background: #fff;
+    }
+    .filter-bar input[type=text] {
+      padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 13px; flex: 1; min-width: 140px;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .upload-cell {
+      border: 2px dashed #ddd; border-radius: 10px; padding: 10px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-cell:hover { border-color: #3498db; background: #f0f7ff; }
+    .upload-cell.has-photo { border-color: #27ae60; border-style: solid; background: #f0faf4; }
+    .upload-cell.hidden-cell { display: none; }
+    .upload-cell input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-cell .thumb {
+      width: 100%; height: 80px; object-fit: cover;
+      border-radius: 6px; display: none; margin-bottom: 5px;
+    }
+    .upload-cell.has-photo .thumb { display: block; }
+    .upload-cell .icon { font-size: 22px; margin-bottom: 4px; display: block; }
+    .upload-cell.has-photo .icon { display: none; }
+    .upload-cell .lbl { font-size: 12px; font-weight: 700; color: #333; line-height: 1.3; }
+    .upload-cell .tax { font-size: 10px; color: #999; margin-top: 2px; font-style: italic; }
+    .upload-cell .sub { font-size: 10px; color: #bbb; margin-top: 3px; }
+    .upload-cell.has-photo .sub { color: #27ae60; }
+
+    .setup-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+    .btn-start {
+      flex: 1; min-width: 180px; padding: 12px; background: #27ae60; color: #fff;
+      border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .btn-start:hover { background: #1e8449; }
+    .btn-secondary {
+      padding: 10px 18px; background: #f0f2f5; color: #333;
+      border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #e0e2e5; }
+    .start-note { font-size: 12px; color: #999; margin-top: 6px; }
+    .counter { font-size: 13px; color: #27ae60; font-weight: 600; }
+
+    /* ── SPEL ── */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { background: #f0f2f5; border-radius: 20px; padding: 5px 14px; font-size: 13px; color: #555; }
+    .badge strong { color: #1a1a1a; }
+
+    .progress-track { height: 6px; background: #e8eaed; border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,#2ecc71,#27ae60); border-radius: 3px; transition: width .5s; }
+
+    .photo-wrap { text-align: center; margin-bottom: 18px; }
+    .photo-frame {
+      display: inline-block; border-radius: 12px; overflow: hidden;
+      border: 2px solid #e0e0e0; background: #f5f5f5;
+      width: 100%; max-width: 500px; height: 300px;
+    }
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; margin-bottom: 18px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #777; margin-bottom: 4px; }
+    .field select { width: 100%; padding: 7px 10px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 13px; background: #fff; }
+    .field select.correct  { border-color: #27ae60; background: #eafaf1; color: #1e8449; }
+    .field select.wrong    { border-color: #e74c3c; background: #fdf2f2; color: #922b21; }
+    .field select.irrelevant { opacity: .35; pointer-events: none; }
+
+    .btn-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .btn { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-check { background: #3498db; color: #fff; }
+    .btn-check:hover { background: #2980b9; }
+    .btn-next  { background: #27ae60; color: #fff; display: none; }
+    .btn-next:hover { background: #1e8449; }
+    .btn-quit  { background: #f0f2f5; color: #555; }
+    .btn-quit:hover { background: #e0e2e5; }
+
+    .result-box { border-radius: 10px; padding: 14px 18px; font-size: 14px; display: none; margin-bottom: 4px; }
+    .result-box.correct { background: #eafaf1; border: 1.5px solid #a9dfbf; }
+    .result-box.partial { background: #fef9e7; border: 1.5px solid #f9e79f; }
+    .result-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 5px; }
+    .result-item { display: flex; align-items: flex-start; gap: 5px; font-size: 12px; line-height: 1.4; }
+    .result-item .key { color: #888; min-width: 72px; text-transform: capitalize; }
+    .icon-ok  { color: #27ae60; font-weight: 900; }
+    .icon-bad { color: #e74c3c; font-weight: 900; }
+
+    /* ── EINDSCHERM ── */
+    .end-screen { display: none; text-align: center; padding: 20px 0; }
+    .stars { font-size: 42px; margin-bottom: 12px; letter-spacing: 4px; }
+    .end-screen h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .end-screen p  { color: #777; margin-bottom: 24px; font-size: 15px; }
+    .end-badges { display: flex; gap: 14px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; }
+    .end-badge { background: #f0f2f5; border-radius: 10px; padding: 10px 22px; font-size: 13px; color: #555; }
+    .end-badge strong { font-size: 22px; display: block; color: #1a1a1a; margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ SETUP ══ -->
+<div class="card" id="setup">
+  <h2>📷 Arthropoda-herkenningsspel</h2>
+  <p>Klik op een soort om een eigen foto toe te voegen. Je kunt ook zonder foto's starten — dan zie je de naam als hint.</p>
+
+  <div class="filter-bar">
+    <label>Filter:</label>
+    <select id="filter-orde" onchange="applyFilter()">
+      <option value="">Alle ordes</option>
+    </select>
+    <input type="text" id="filter-search" placeholder="Zoek soort..." oninput="applyFilter()">
+    <span class="counter" id="photo-counter">0 foto's toegevoegd</span>
+  </div>
+
+  <div class="upload-grid" id="upload-grid"></div>
+
+  <div class="setup-actions">
+    <button class="btn-start" onclick="startGame()">&#9654; Spel starten</button>
+    <button class="btn-secondary" onclick="clearAll()">Wis alles</button>
+    <button class="btn-secondary" onclick="exportFotos()">&#128190; Exporteer foto's</button>
+    <label class="btn-secondary" style="cursor:pointer">
+      &#128194; Importeer foto's
+      <input type="file" accept=".json" onchange="importFotos(this)" style="display:none">
+    </label>
+  </div>
+  <p class="start-note">Tip: exporteer je foto's naar een .json bestand — importeer het daarna om ze overal te laden.</p>
+</div>
+
+<!-- ══ SPEL ══ -->
+<div class="card" id="main-game" style="display:none">
+  <div class="header">
+    <h1>Arthropoda herkenning</h1>
+    <div class="badges">
+      <div class="badge">Score <strong id="score-val">0</strong></div>
+      <div class="badge">Vraag <strong id="q-num">1</strong> / <span id="q-total"></span></div>
+    </div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+
+  <div class="photo-wrap">
+    <div class="photo-frame"><img id="taxon-img" src="" alt="arthropoda"></div>
+  </div>
+
+  <div class="grid" id="selects-grid"></div>
+
+  <div class="btn-row">
+    <button class="btn btn-check" id="check-btn" onclick="checkAnswers()">Controleer</button>
+    <button class="btn btn-next"  id="next-btn"  onclick="nextTaxon()">Volgende →</button>
+    <button class="btn btn-quit"                 onclick="goBack()">↩ Foto's aanpassen</button>
+  </div>
+  <div class="result-box" id="result-box">
+    <div class="result-title" id="result-title"></div>
+    <div class="result-grid"  id="result-grid"></div>
+  </div>
+</div>
+
+<!-- ══ EINDSCHERM ══ -->
+<div class="card end-screen" id="end-screen">
+  <div class="stars" id="stars"></div>
+  <h2 id="end-title"></h2>
+  <p  id="end-msg"></p>
+  <div class="end-badges">
+    <div class="end-badge"><strong id="end-score"></strong>niveaus goed</div>
+    <div class="end-badge"><strong id="end-perfect"></strong>perfect</div>
+    <div class="end-badge"><strong id="end-pct"></strong>score</div>
+  </div>
+  <div class="btn-row" style="justify-content:center">
+    <button class="btn btn-check" onclick="restartGame()">Opnieuw spelen</button>
+    <button class="btn btn-quit"  onclick="goBack()">📷 Foto's aanpassen</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// VOLLEDIGE TAXONLIJST op basis van de cursuslijst
+// ════════════════════════════════════════════════════════
+const taxa = [
+  // CHELICERATA – Arachnida
+  { name:"Mijt / teek",             orde:"Acari",            fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Acari",suborde:"",superfamilie:"",familie:""} },
+  { name:"Kruisspin / wielwebspin",               orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Araneidae"} },
+  { name:"Hangmatspin",             orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Linyphiidae"} },
+  { name:"Wolfspin",                orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Lycosidae"} },
+  { name:"Springspin",              orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Salticidae"} },
+  { name:"Strekspin",               orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Tetragnathidae"} },
+  { name:"Krabspin",                orde:"Araneae",          fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Araneae",suborde:"",superfamilie:"",familie:"Thomisidae"} },
+  { name:"Hooiwagen",               orde:"Opiliones",        fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Opiliones",suborde:"",superfamilie:"",familie:""} },
+  { name:"Bastaardschorpioen",      orde:"Pseudoscorpionida",fylogenie:{fylum:"Arthropoda",subfylum:"Chelicerata",klasse:"Arachnida",subklasse:"",orde:"Pseudoscorpionida",suborde:"",superfamilie:"",familie:""} },
+
+  // CRUSTACEA
+  { name:"Watervlo",                orde:"Diplostraca",      fylogenie:{fylum:"Arthropoda",subfylum:"Crustacea",klasse:"Branchiopoda",subklasse:"Diplostraca",orde:"",suborde:"",superfamilie:"",familie:""} },
+  { name:"Vlokreeftje",             orde:"Amphipoda",        fylogenie:{fylum:"Arthropoda",subfylum:"Crustacea",klasse:"Malacostraca",subklasse:"",orde:"Amphipoda",suborde:"",superfamilie:"",familie:""} },
+  { name:"Kreeft / krab / garnaal", orde:"Decapoda",         fylogenie:{fylum:"Arthropoda",subfylum:"Crustacea",klasse:"Malacostraca",subklasse:"",orde:"Decapoda",suborde:"",superfamilie:"",familie:""} },
+  { name:"Pissebed",                orde:"Isopoda",          fylogenie:{fylum:"Arthropoda",subfylum:"Crustacea",klasse:"Malacostraca",subklasse:"",orde:"Isopoda",suborde:"",superfamilie:"",familie:""} },
+
+  // MYRIAPODA
+  { name:"Duizendpoot",             orde:"Chilopoda",        fylogenie:{fylum:"Arthropoda",subfylum:"Myriapoda",klasse:"Chilopoda",subklasse:"",orde:"",suborde:"",superfamilie:"",familie:""} },
+  { name:"Miljoenpoot",             orde:"Diplopoda",        fylogenie:{fylum:"Arthropoda",subfylum:"Myriapoda",klasse:"Diplopoda",subklasse:"",orde:"",suborde:"",superfamilie:"",familie:""} },
+
+  // HEXAPODA – Entognatha
+  { name:"Springstaart",            orde:"Collembola",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Entognatha",subklasse:"",orde:"Collembola",suborde:"",superfamilie:"",familie:""} },
+
+  // INSECTA – Exopterygota
+  { name:"Kakkerlak / termieten",               orde:"Blattodea",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Blattodea",suborde:"",superfamilie:"",familie:""} },
+  { name:"Oorworm",                 orde:"Dermaptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Dermaptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Haft / eendagsvlieg",     orde:"Ephemeroptera",    fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Ephemeroptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Schildwants",             orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Heteroptera",superfamilie:"",familie:"Pentatomidae"} },
+  { name:"Blindwants",              orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Heteroptera",superfamilie:"",familie:"Miridae"} },
+  { name:"Schaatsenrijder",         orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Heteroptera",superfamilie:"",familie:"Gerridae"} },
+  { name:"Rugzwemmer / bootsmannetje", orde:"Hemiptera",     fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Heteroptera",superfamilie:"",familie:"Notonectidae"} },
+  { name:"Duikerwants",             orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Heteroptera",superfamilie:"",familie:"Corixidae"} },
+  { name:"Schuimcicade",            orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Auchenorrhyncha",superfamilie:"",familie:"Aphrophoridae"} },
+  { name:"Spoorcicade",             orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Auchenorrhyncha",superfamilie:"",familie:"Delphacidae"} },
+  { name:"Dwergcicade",             orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Auchenorrhyncha",superfamilie:"",familie:"Cicadellidae"} },
+  { name:"Bladluis",                orde:"Hemiptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Hemiptera",suborde:"Sternorrhyncha",superfamilie:"Aphidoidea",familie:""} },
+  { name:"Schorpioenvlieg",         orde:"Mecoptera",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Mecoptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Slijkvlieg",              orde:"Megaloptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Megaloptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Rotsspringer / franjestaart",            orde:"Archaeognatha",    fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Archaeognatha",suborde:"",superfamilie:"",familie:""} },
+  { name:"Gaasvlieg / mierenleeuw", orde:"Neuroptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Neuroptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Libel",                   orde:"Odonata",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Odonata",suborde:"Anisoptera",superfamilie:"",familie:""} },
+  { name:"Waterjuffer",             orde:"Odonata",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Odonata",suborde:"Zygoptera",superfamilie:"",familie:""} },
+  { name:"Veldsprinkhaan",          orde:"Orthoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Orthoptera",suborde:"",superfamilie:"",familie:"Acrididae"} },
+  { name:"Krekel",                  orde:"Orthoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Orthoptera",suborde:"",superfamilie:"",familie:"Gryllidae"} },
+  { name:"Veenmol",                 orde:"Orthoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Orthoptera",suborde:"",superfamilie:"",familie:"Gryllotalpidae"} },
+  { name:"Doornsprinkhaan",         orde:"Orthoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Orthoptera",suborde:"",superfamilie:"",familie:"Tetrigidae"} },
+  { name:"Sabelsprinkhaan",         orde:"Orthoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Orthoptera",suborde:"",superfamilie:"",familie:"Tettigoniidae"} },
+  { name:"Steenvlieg",              orde:"Plecoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Plecoptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Dierluis",                orde:"Psocodea",         fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Psocodea",suborde:"Phthiraptera",superfamilie:"",familie:""} },
+  { name:"Stofluis",                orde:"Psocodea",         fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Psocodea",suborde:"Psocoptera",superfamilie:"",familie:""} },
+  { name:"Kameelhalsvlieg",         orde:"Raphidioptera",    fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Raphidioptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Vlo",                     orde:"Siphonaptera",     fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Siphonaptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Trips",                   orde:"Thysanoptera",     fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Thysanoptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Kokerjuffer / schietmotten",             orde:"Trichoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Trichoptera",suborde:"",superfamilie:"",familie:""} },
+  { name:"Zilvervisje",             orde:"Zygentoma",        fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Exopterygota / Hemimetabola",orde:"Zygentoma",suborde:"",superfamilie:"",familie:""} },
+
+  // INSECTA – Endopterygota / Coleoptera
+  { name:"Soldaatje / weekschildkever",               orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Cantharidae"} },
+  { name:"Loopkever",               orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Carabidae"} },
+  { name:"Boktor",                  orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Cerambycidae"} },
+  { name:"Bladkever",               orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Chrysomelidae"} },
+  { name:"Lieveheersbeestje",       orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Coccinellidae"} },
+  { name:"Snuitkever",              orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Curculionidae"} },
+  { name:"Waterroofkever",          orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Dytiscidae"} },
+  { name:"Kniptor",                 orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Elateridae"} },
+  { name:"Schrijvertje",            orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Gyrinidae"} },
+  { name:"Spinnende waterkever",    orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Hydrophilidae"} },
+  { name:"Aaskever",                orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Silphidae"} },
+  { name:"Kortschildkever",         orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Staphylinidae"} },
+  { name:"Bladsprietkever",         orde:"Coleoptera",       fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Coleoptera",suborde:"",superfamilie:"",familie:"Scarabaeidae"} },
+
+  // INSECTA – Endopterygota / Diptera – Brachycera
+  { name:"Roofvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Asilidae"} },
+  { name:"Bromvlieg / vleesvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Calliphoridae"} },
+  { name:"Slankpootvlieg",          orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Dolichopodidae"} },
+  { name:"Dansvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Empididae"} },
+  { name:"Echte vlieg",             orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Muscidae"} },
+  { name:"Snipvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Rhagionidae"} },
+  { name:"Wapenvlieg",              orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Stratiomyidae"} },
+  { name:"Zweefvlieg",              orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Syrphidae"} },
+  { name:"Daas",                    orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Tabanidae"} },
+  { name:"Sluipvlieg",              orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Tachinidae"} },
+
+  // INSECTA – Endopterygota / Diptera – Nematocera
+  { name:"Rouwvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Bibionidae"} },
+  { name:"Knut",                    orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Ceratopogonidae"} },
+  { name:"Dansmug",                 orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Chironomidae"} },
+  { name:"Steekmug",                orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Culicidae"} },
+  { name:"Langpootmug",             orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Tipulidae"} },
+
+  // INSECTA – Endopterygota / Hymenoptera
+  { name:"Honingbij / hommel",      orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Apidae"} },
+  { name:"Mier",                    orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Formicidae"} },
+  { name:"langsteelGraafwesp",               orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Sphecidae"} },
+  { name:"Plooivleugelwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Vespidae"} },
+  { name:"Galwesp",                 orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Cynipoidea",familie:""} },
+  { name:"Gewone sluipwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Ichneumonidae"} },
+  { name:"Bladwesp",                orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Symphyta",superfamilie:"",familie:""} },
+
+  // INSECTA – Endopterygota / Lepidoptera
+  { name:"Pijlstaart",              orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Bombycoidea",familie:"Sphingidae"} },
+  { name:"Spanner",                 orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Geometroidea",familie:"Geometridae"} },
+  { name:"Spinner",                 orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Lasiocampoidea",familie:"Lasiocampidae"} },
+  { name:"Uil (nachtvlinder)",      orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Noctuoidea",familie:"Noctuidae"} },
+  { name:"Spinneruil",              orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Noctuoidea",familie:"Erebidae"} },
+  { name:"Blauwtje / vuurvlinder",  orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Papilionoidea",familie:"Lycaenidae"} },
+  { name:"Schoenlapper / parelmoervlinders /zandoogje", orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Papilionoidea",familie:"Nymphalidae"} },
+  { name:"Witje (dagvlinder)",      orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Papilionoidea",familie:"Pieridae"} },
+  { name:"Bladroller",              orde:"Lepidoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Lepidoptera",suborde:"",superfamilie:"Tortricoidea",familie:"Tortricidae"} },
+];
+
+// ── DROPDOWN OPTIES ──────────────────────────────────────────
+const options = {
+  fylum:       ["","Arthropoda"],
+  subfylum:    ["","Chelicerata","Crustacea","Myriapoda","Hexapoda"],
+  klasse:      ["","Arachnida","Branchiopoda","Malacostraca","Ostracoda","Chilopoda","Diplopoda","Entognatha","Insecta"],
+  subklasse:   ["","Diplostraca","Exopterygota / Hemimetabola","Endopterygota / Holometabola"],
+  orde:        ["","Acari","Araneae","Opiliones","Pseudoscorpionida","Amphipoda","Decapoda","Isopoda","Collembola","Blattodea","Dermaptera","Ephemeroptera","Hemiptera","Mecoptera","Megaloptera","Archaeognatha","Neuroptera","Odonata","Orthoptera","Plecoptera","Psocodea","Raphidioptera","Siphonaptera","Thysanoptera","Trichoptera","Zygentoma","Coleoptera","Diptera","Hymenoptera","Lepidoptera"],
+  suborde:     ["","Anisoptera","Zygoptera","Heteroptera","Auchenorrhyncha","Sternorrhyncha","Phthiraptera","Psocoptera","Brachycera","Nematocera","Apocrita","Symphyta"],
+  superfamilie:["","Aphidoidea","Cynipoidea","Bombycoidea","Geometroidea","Lasiocampoidea","Noctuoidea","Papilionoidea","Tortricoidea"],
+  familie:     ["","Araneidae","Linyphiidae","Lycosidae","Salticidae","Tetragnathidae","Thomisidae","Pentatomidae","Miridae","Gerridae","Notonectidae","Corixidae","Aphrophoridae","Delphacidae","Cicadellidae","Acrididae","Gryllidae","Gryllotalpidae","Tetrigidae","Tettigoniidae","Cantharidae","Carabidae","Cerambycidae","Chrysomelidae","Coccinellidae","Curculionidae","Dytiscidae","Elateridae","Gyrinidae","Hydrophilidae","Silphidae","Staphylinidae","Scarabaeidae","Asilidae","Calliphoridae","Dolichopodidae","Empididae","Muscidae","Rhagionidae","Stratiomyidae","Syrphidae","Tabanidae","Tachinidae","Bibionidae","Ceratopogonidae","Chironomidae","Culicidae","Tipulidae","Apidae","Formicidae","Sphecidae","Vespidae","Ichneumonidae","Sphingidae","Geometridae","Lasiocampidae","Noctuidae","Erebidae","Lycaenidae","Nymphalidae","Pieridae","Tortricidae"]
+};
+
+const levels = Object.keys(options);
+const photoData = {};
+let order = [], curIdx = 0, totalScore = 0, totalPossible = 0, correctAnswers = 0;
+
+// ── SETUP ─────────────────────────────────────────────────────
+function buildUploadGrid() {
+  // Vul orde-filter
+  const ordes = [...new Set(taxa.map(t => t.orde))].sort();
+  const sel = document.getElementById('filter-orde');
+  ordes.forEach(o => { const opt = document.createElement('option'); opt.value = o; opt.textContent = o; sel.appendChild(opt); });
+
+  const g = document.getElementById('upload-grid');
+  taxa.forEach((t, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'upload-cell';
+    cell.id = 'cell-' + i;
+    cell.innerHTML = `
+      <input type="file" accept="image/*" onchange="handlePhoto(${i}, this)">
+      <img class="thumb" id="thumb-${i}" src="" alt="">
+      <span class="icon">📷</span>
+      <div class="lbl">${t.name}</div>
+      <div class="tax">${t.orde}</div>
+      <div class="sub" id="sub-${i}">klik om foto te kiezen</div>`;
+    g.appendChild(cell);
+  });
+  updateCounter();
+}
+
+function applyFilter() {
+  const orde   = document.getElementById('filter-orde').value.toLowerCase();
+  const search = document.getElementById('filter-search').value.toLowerCase();
+  taxa.forEach((t, i) => {
+    const cell = document.getElementById('cell-' + i);
+    const matchOrde   = !orde   || t.orde.toLowerCase() === orde;
+    const matchSearch = !search || t.name.toLowerCase().includes(search) || t.orde.toLowerCase().includes(search);
+    cell.classList.toggle('hidden-cell', !(matchOrde && matchSearch));
+  });
+}
+
+function handlePhoto(index, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    photoData[index] = e.target.result;
+    try { localStorage.setItem('arthropoda_photo_' + index, e.target.result); } catch(err) { console.warn('Opslag vol:', err); }
+    document.getElementById('thumb-' + index).src = e.target.result;
+    document.getElementById('cell-' + index).classList.add('has-photo');
+    document.getElementById('sub-' + index).textContent = '✓ Foto opgeslagen';
+    updateCounter();
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateCounter() {
+  const n = Object.keys(photoData).length;
+  document.getElementById('photo-counter').textContent = n + ' foto' + (n === 1 ? '' : '\'s') + ' toegevoegd';
+}
+
+function selectAll() {
+  document.querySelectorAll('#upload-grid input[type=file]').forEach(inp => inp.click());
+}
+function clearAll() {
+  Object.keys(photoData).forEach(k => {
+    delete photoData[k];
+    try { localStorage.removeItem('arthropoda_photo_' + k); } catch(e) {}
+  });
+  taxa.forEach((_, i) => {
+    document.getElementById('thumb-' + i).src = '';
+    document.getElementById('cell-' + i).classList.remove('has-photo');
+    document.getElementById('sub-' + i).textContent = 'klik om foto te kiezen';
+  });
+  updateCounter();
+}
+
+// ── SPEL ──────────────────────────────────────────────────────
+function buildSelects() {
+  const g = document.getElementById('selects-grid');
+  g.innerHTML = '';
+  levels.forEach(key => {
+    const d = document.createElement('div'); d.className = 'field';
+    const lbl = document.createElement('label'); lbl.htmlFor = 'sel-' + key;
+    lbl.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+    const sel = document.createElement('select'); sel.id = 'sel-' + key;
+    options[key].forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v || '— kies —'; sel.appendChild(o); });
+    d.appendChild(lbl); d.appendChild(sel); g.appendChild(d);
+  });
+}
+
+function makePlaceholder(name) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 500; canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#e8f4fd'; ctx.fillRect(0, 0, 500, 300);
+  ctx.fillStyle = '#3498db'; ctx.font = 'bold 26px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(name, 250, 130);
+  ctx.fillStyle = '#aaa'; ctx.font = '15px Arial';
+  ctx.fillText('Geen foto toegevoegd', 250, 175);
+  ctx.fillText('📷', 250, 215);
+  return canvas.toDataURL();
+}
+
+function loadTaxon(idx) {
+  const ri = order[idx];
+  const t  = taxa[ri];
+  document.getElementById('taxon-img').src = photoData[ri] ? photoData[ri] : makePlaceholder(t.name);
+  levels.forEach(k => { const s = document.getElementById('sel-' + k); s.value = ''; s.className = ''; s.disabled = false; });
+  document.getElementById('result-box').style.display = 'none';
+  document.getElementById('check-btn').style.display  = '';
+  document.getElementById('next-btn').style.display   = 'none';
+  document.getElementById('q-num').textContent   = idx + 1;
+  document.getElementById('q-total').textContent = order.length;
+  document.getElementById('score-val').textContent = totalScore;
+  document.getElementById('prog').style.width = Math.round((idx / order.length) * 100) + '%';
+}
+
+function checkAnswers() {
+  const t = taxa[order[curIdx]];
+  let got = 0, possible = 0;
+  const details = [];
+  levels.forEach(k => {
+    const correct = t.fylogenie[k] || '';
+    const sel = document.getElementById('sel-' + k);
+    const given = sel.value;
+    if (correct.trim()) {
+      possible++;
+      if (given === correct) { got++; sel.className = 'correct'; details.push({k, ok:true, correct}); }
+      else { sel.className = 'wrong'; details.push({k, ok:false, given, correct}); }
+    } else { sel.className = 'irrelevant'; }
+    sel.disabled = true;
+  });
+  totalScore += got; totalPossible += possible;
+  if (got === possible) correctAnswers++;
+  document.getElementById('score-val').textContent = totalScore;
+
+  const box = document.getElementById('result-box');
+  box.style.display = 'block';
+  box.className = 'result-box ' + (got === possible ? 'correct' : 'partial');
+  document.getElementById('result-title').textContent =
+    got === possible ? `✓ Perfect! Alles goed voor ${t.name}.` : `${got} van ${possible} niveaus goed voor ${t.name}.`;
+
+  const rg = document.getElementById('result-grid');
+  rg.innerHTML = '';
+  details.forEach(d => {
+    const row = document.createElement('div'); row.className = 'result-item';
+    row.innerHTML = `<span class="key">${d.k}</span>
+      <span class="${d.ok ? 'icon-ok' : 'icon-bad'}">${d.ok ? '✓' : '✗'}</span>
+      <span>${d.ok ? `<b>${d.correct}</b>` : `<span style="color:#e74c3c">${d.given||'—'}</span> → <b>${d.correct}</b>`}</span>`;
+    rg.appendChild(row);
+  });
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('next-btn').style.display  = 'inline-block';
+}
+
+function nextTaxon() {
+  curIdx++;
+  if (curIdx >= order.length) { showEnd(); return; }
+  loadTaxon(curIdx);
+}
+
+function showEnd() {
+  document.getElementById('main-game').style.display = 'none';
+  document.getElementById('end-screen').style.display = 'block';
+  const pct = totalPossible ? Math.round((totalScore / totalPossible) * 100) : 0;
+  document.getElementById('end-score').textContent   = totalScore + '/' + totalPossible;
+  document.getElementById('end-perfect').textContent = correctAnswers + '/' + order.length;
+  document.getElementById('end-pct').textContent     = pct + '%';
+  const stars = pct >= 90 ? '⭐⭐⭐' : pct >= 65 ? '⭐⭐' : '⭐';
+  const title = pct >= 90 ? 'Uitstekend!' : pct >= 65 ? 'Goed gedaan!' : 'Blijf oefenen!';
+  const msg   = pct >= 90 ? 'Je beheerst de arthropoda-herkenning uitstekend!' : pct >= 65 ? 'Je bent op de goede weg. Nog een rondje?' : 'Herhaal de cursuslijst en probeer het opnieuw.';
+  document.getElementById('stars').textContent     = stars;
+  document.getElementById('end-title').textContent = title;
+  document.getElementById('end-msg').textContent   = msg;
+  document.getElementById('prog').style.width = '100%';
+}
+
+function shuffle(a) { for (let i = a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function startGame() {
+  curIdx = 0; totalScore = 0; totalPossible = 0; correctAnswers = 0;
+  order = shuffle([...Array(taxa.length).keys()]);
+  buildSelects();
+  document.getElementById('setup').style.display      = 'none';
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('main-game').style.display  = 'block';
+  loadTaxon(0);
+}
+
+function restartGame() {
+  curIdx = 0; totalScore = 0; totalPossible = 0; correctAnswers = 0;
+  order = shuffle([...Array(taxa.length).keys()]);
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('main-game').style.display  = 'block';
+  loadTaxon(0);
+}
+
+function goBack() {
+  document.getElementById('main-game').style.display  = 'none';
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('setup').style.display      = 'block';
+}
+
+
+// ── EXPORTEER / IMPORTEER ────────────────────────────────────
+function exportFotos() {
+  const n = Object.keys(photoData).length;
+  if (n === 0) { alert('Je hebt nog geen foto\'s toegevoegd.'); return; }
+  const data = JSON.stringify(photoData);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'arthropoda-fotos.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importFotos(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let count = 0;
+      Object.entries(data).forEach(([k, v]) => {
+        const i = parseInt(k);
+        if (i >= 0 && i < taxa.length && typeof v === 'string' && v.startsWith('data:image')) {
+          photoData[i] = v;
+          try { localStorage.setItem('arthropoda_photo_' + i, v); } catch(err) {}
+          document.getElementById('thumb-' + i).src = v;
+          document.getElementById('cell-' + i).classList.add('has-photo');
+          document.getElementById('sub-' + i).textContent = '\u2713 Foto opgeslagen';
+          count++;
+        }
+      });
+      updateCounter();
+      alert(count + ' foto\'s succesvol geladen!');
+    } catch(err) {
+      alert('Fout bij het laden van het bestand. Gebruik een geldig arthropoda-fotos.json bestand.');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+buildUploadGrid();
+
+// Laad opgeslagen foto's uit localStorage
+taxa.forEach((_, i) => {
+  try {
+    const saved = localStorage.getItem('arthropoda_photo_' + i);
+    if (saved) {
+      photoData[i] = saved;
+      document.getElementById('thumb-' + i).src = saved;
+      document.getElementById('cell-' + i).classList.add('has-photo');
+      document.getElementById('sub-' + i).textContent = '✓ Foto opgeslagen';
+    }
+  } catch(e) {}
+});
+updateCounter();
+</script>
+</body>
+</html>
