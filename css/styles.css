@@ -134,3 +134,27 @@
     .end-badges { display: flex; gap: 14px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; }
     .end-badge { background: #f0f2f5; border-radius: 10px; padding: 10px 22px; font-size: 13px; color: #555; }
     .end-badge strong { font-size: 22px; display: block; color: #1a1a1a; margin-bottom: 2px; }
+
+    .logo {
+      width: 150px;
+      height: 50px;
+    }
+
+    footer {
+  display: flex;
+  justify-content: center;   
+  align-items: center;     
+  gap: 8px;                 
+  padding: 10px 0;
+}
+
+footer p {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+footer .logo {
+  width: 120px;              
+  height: auto;              
+}
