@@ -472,7 +472,8 @@ async function loadDefaultFotos() {
 
     updateCounter();
 
-    console.log(`Loaded ${count} default photos`);
+  console.log(
+  `Loaded ${count} of ${Object.keys(data).length} photos`);
   } catch (err) {
     console.warn('No default photo JSON loaded:', err);
   }
