@@ -1,13 +1,149 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <link rel="stylesheet" href="css/styles.css" />
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Arthropoda-herkenningsspel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 12px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+      width: 100%;
+      max-width: 860px;
+      padding: 28px 30px;
+      margin-bottom: 16px;
+    }
 
+    /* ── SETUP ── */
+    #setup h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    #setup > p { color: #666; font-size: 14px; margin-bottom: 20px; }
+
+    .filter-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center;
+    }
+    .filter-bar label { font-size: 13px; font-weight: 600; color: #555; }
+    .filter-bar select {
+      padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 13px; background: #fff;
+    }
+    .filter-bar input[type=text] {
+      padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 7px;
+      font-size: 13px; flex: 1; min-width: 140px;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+      max-height: 460px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .upload-cell {
+      border: 2px dashed #ddd; border-radius: 10px; padding: 10px;
+      text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .upload-cell:hover { border-color: #3498db; background: #f0f7ff; }
+    .upload-cell.has-photo { border-color: #27ae60; border-style: solid; background: #f0faf4; }
+    .upload-cell.hidden-cell { display: none; }
+    .upload-cell input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-cell .thumb {
+      width: 100%; height: 80px; object-fit: cover;
+      border-radius: 6px; display: none; margin-bottom: 5px;
+    }
+    .upload-cell.has-photo .thumb { display: block; }
+    .upload-cell .icon { font-size: 22px; margin-bottom: 4px; display: block; }
+    .upload-cell.has-photo .icon { display: none; }
+    .upload-cell .lbl { font-size: 12px; font-weight: 700; color: #333; line-height: 1.3; }
+    .upload-cell .tax { font-size: 10px; color: #999; margin-top: 2px; font-style: italic; }
+    .upload-cell .sub { font-size: 10px; color: #bbb; margin-top: 3px; }
+    .upload-cell.has-photo .sub { color: #27ae60; }
+
+    .setup-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+    .btn-start {
+      flex: 1; min-width: 180px; padding: 12px; background: #27ae60; color: #fff;
+      border: none; border-radius: 9px; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .btn-start:hover { background: #1e8449; }
+    .btn-secondary {
+      padding: 10px 18px; background: #f0f2f5; color: #333;
+      border: none; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #e0e2e5; }
+    .start-note { font-size: 12px; color: #999; margin-top: 6px; }
+    .counter { font-size: 13px; color: #27ae60; font-weight: 600; }
+
+    /* ── SPEL ── */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { background: #f0f2f5; border-radius: 20px; padding: 5px 14px; font-size: 13px; color: #555; }
+    .badge strong { color: #1a1a1a; }
+
+    .progress-track { height: 6px; background: #e8eaed; border-radius: 3px; overflow: hidden; margin-bottom: 18px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,#2ecc71,#27ae60); border-radius: 3px; transition: width .5s; }
+
+    .photo-wrap { text-align: center; margin-bottom: 18px; }
+    .photo-frame {
+      display: inline-block; border-radius: 12px; overflow: hidden;
+      border: 2px solid #e0e0e0; background: #f5f5f5;
+      width: 100%; max-width: 500px; height: 300px;
+    }
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 10px; margin-bottom: 18px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #777; margin-bottom: 4px; }
+    .field select { width: 100%; padding: 7px 10px; border: 1.5px solid #ddd; border-radius: 7px; font-size: 13px; background: #fff; }
+    .field select.correct  { border-color: #27ae60; background: #eafaf1; color: #1e8449; }
+    .field select.wrong    { border-color: #e74c3c; background: #fdf2f2; color: #922b21; }
+    .field select.irrelevant { opacity: .35; pointer-events: none; }
+
+    .btn-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .btn { padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-check { background: #3498db; color: #fff; }
+    .btn-check:hover { background: #2980b9; }
+    .btn-next  { background: #27ae60; color: #fff; display: none; }
+    .btn-next:hover { background: #1e8449; }
+    .btn-quit  { background: #f0f2f5; color: #555; }
+    .btn-quit:hover { background: #e0e2e5; }
+
+    .result-box { border-radius: 10px; padding: 14px 18px; font-size: 14px; display: none; margin-bottom: 4px; }
+    .result-box.correct { background: #eafaf1; border: 1.5px solid #a9dfbf; }
+    .result-box.partial { background: #fef9e7; border: 1.5px solid #f9e79f; }
+    .result-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px,1fr)); gap: 5px; }
+    .result-item { display: flex; align-items: flex-start; gap: 5px; font-size: 12px; line-height: 1.4; }
+    .result-item .key { color: #888; min-width: 72px; text-transform: capitalize; }
+    .icon-ok  { color: #27ae60; font-weight: 900; }
+    .icon-bad { color: #e74c3c; font-weight: 900; }
+
+    /* ── EINDSCHERM ── */
+    .end-screen { display: none; text-align: center; padding: 20px 0; }
+    .stars { font-size: 42px; margin-bottom: 12px; letter-spacing: 4px; }
+    .end-screen h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .end-screen p  { color: #777; margin-bottom: 24px; font-size: 15px; }
+    .end-badges { display: flex; gap: 14px; justify-content: center; margin-bottom: 28px; flex-wrap: wrap; }
+    .end-badge { background: #f0f2f5; border-radius: 10px; padding: 10px 22px; font-size: 13px; color: #555; }
+    .end-badge strong { font-size: 22px; display: block; color: #1a1a1a; margin-bottom: 2px; }
+  </style>
 </head>
 <body>
+
 <!-- ══ SETUP ══ -->
 <div class="card" id="setup">
   <h2>📷 Arthropoda-herkenningsspel</h2>
@@ -48,7 +184,7 @@
   <div class="progress-track"><div class="progress-fill" id="prog" style="width:0%"></div></div>
 
   <div class="photo-wrap">
-    <div class="photo-frame"><img id="taxon-img" src="" alt="arthropoda"></div>
+    <div class="photo-frame"><img id="taxon-img" src="img/images.jpg" alt="arthropoda"></div>
   </div>
 
   <div class="grid" id="selects-grid"></div>
@@ -80,18 +216,8 @@
   </div>
 </div>
 
-
-
-<footer>
-  <p>Powered by</p>
-  <a href="https://github.com/JariKooper">
-    <img src="img/Logo.png" class="logo" alt="XjicIT logo">
-  </a>
-  <p> And <a href="https://github.com/Wicky11453">Wicky Enterprises</a></p>
-</footer>
-
 <script>
-  // ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 // VOLLEDIGE TAXONLIJST op basis van de cursuslijst
 // ════════════════════════════════════════════════════════
 const taxa = [
@@ -180,19 +306,19 @@ const taxa = [
   { name:"Sluipvlieg",              orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Brachycera",superfamilie:"",familie:"Tachinidae"} },
 
   // INSECTA – Endopterygota / Diptera – Nematocera
-  { name:"Rouwvlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Bibionidae"} },
+  { name:"Rouwvlieg / zwarte vlieg",               orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Bibionidae"} },
   { name:"Knut",                    orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Ceratopogonidae"} },
   { name:"Dansmug",                 orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Chironomidae"} },
   { name:"Steekmug",                orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Culicidae"} },
   { name:"Langpootmug",             orde:"Diptera",          fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Diptera",suborde:"Nematocera",superfamilie:"",familie:"Tipulidae"} },
 
   // INSECTA – Endopterygota / Hymenoptera
-  { name:"Honingbij / hommel",      orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Apidae"} },
-  { name:"Mier",                    orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Formicidae"} },
-  { name:"langsteelGraafwesp",               orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Sphecidae"} },
-  { name:"Plooivleugelwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Vespidae"} },
-  { name:"Galwesp",                 orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Cynipoidea",familie:""} },
-  { name:"Gewone sluipwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"",familie:"Ichneumonidae"} },
+  { name:"Honingbij / hommel",      orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Aculeata",familie:"Apidae"} },
+  { name:"Mier",                    orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Aculeata",familie:"Formicidae"} },
+  { name:"Langsteelgraafwesp",               orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Aculeata",familie:"Sphecidae"} },
+  { name:"Plooivleugelwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Aculeata",familie:"Vespidae"} },
+  { name:"Galwesp",                 orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Parasitica",familie:"Cynipoidea"} },
+  { name:"Gewone sluipwesp",        orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Apocrita",superfamilie:"Parasitica",familie:"Ichneumonidae"} },
   { name:"Bladwesp",                orde:"Hymenoptera",      fylogenie:{fylum:"Arthropoda",subfylum:"Hexapoda",klasse:"Insecta",subklasse:"Endopterygota / Holometabola",orde:"Hymenoptera",suborde:"Symphyta",superfamilie:"",familie:""} },
 
   // INSECTA – Endopterygota / Lepidoptera
@@ -211,9 +337,9 @@ const taxa = [
 const options = {
   fylum:       ["","Arthropoda"],
   subfylum:    ["","Chelicerata","Crustacea","Myriapoda","Hexapoda"],
-  klasse:      ["","Arachnida","Branchiopoda","Malacostraca","Ostracoda","Chilopoda","Diplopoda","Entognatha","Insecta"],
-  subklasse:   ["","Diplostraca","Exopterygota / Hemimetabola","Endopterygota / Holometabola"],
-  orde:        ["","Acari","Araneae","Opiliones","Pseudoscorpionida","Amphipoda","Decapoda","Isopoda","Collembola","Blattodea","Dermaptera","Ephemeroptera","Hemiptera","Mecoptera","Megaloptera","Archaeognatha","Neuroptera","Odonata","Orthoptera","Plecoptera","Psocodea","Raphidioptera","Siphonaptera","Thysanoptera","Trichoptera","Zygentoma","Coleoptera","Diptera","Hymenoptera","Lepidoptera"],
+  klasse:      ["","Arachnida","Branchiopoda","Chilopoda","Diplopoda","Entognatha","Insecta","Malacostraca","Ostracoda"],
+  subklasse:   ["","Diplostraca","Endopterygota / Holometabola ","Exopterygota / Hemimetabola"],
+  orde:        ["","Acari","Araneae","Amphipoda","Blattodea","Collembola","Decapoda","Opiliones","Pseudoscorpionida","Isopoda","Dermaptera","Ephemeroptera","Hemiptera","Mecoptera","Megaloptera","Archaeognatha","Neuroptera","Odonata","Orthoptera","Plecoptera","Psocodea","Raphidioptera","Siphonaptera","Thysanoptera","Trichoptera","Zygentoma","Coleoptera","Diptera","Hymenoptera","Lepidoptera"],
   suborde:     ["","Anisoptera","Zygoptera","Heteroptera","Auchenorrhyncha","Sternorrhyncha","Phthiraptera","Psocoptera","Brachycera","Nematocera","Apocrita","Symphyta"],
   superfamilie:["","Aphidoidea","Cynipoidea","Bombycoidea","Geometroidea","Lasiocampoidea","Noctuoidea","Papilionoidea","Tortricoidea"],
   familie:     ["","Araneidae","Linyphiidae","Lycosidae","Salticidae","Tetragnathidae","Thomisidae","Pentatomidae","Miridae","Gerridae","Notonectidae","Corixidae","Aphrophoridae","Delphacidae","Cicadellidae","Acrididae","Gryllidae","Gryllotalpidae","Tetrigidae","Tettigoniidae","Cantharidae","Carabidae","Cerambycidae","Chrysomelidae","Coccinellidae","Curculionidae","Dytiscidae","Elateridae","Gyrinidae","Hydrophilidae","Silphidae","Staphylinidae","Scarabaeidae","Asilidae","Calliphoridae","Dolichopodidae","Empididae","Muscidae","Rhagionidae","Stratiomyidae","Syrphidae","Tabanidae","Tachinidae","Bibionidae","Ceratopogonidae","Chironomidae","Culicidae","Tipulidae","Apidae","Formicidae","Sphecidae","Vespidae","Ichneumonidae","Sphingidae","Geometridae","Lasiocampidae","Noctuidae","Erebidae","Lycaenidae","Nymphalidae","Pieridae","Tortricidae"]
@@ -482,7 +608,5 @@ taxa.forEach((_, i) => {
 });
 updateCounter();
 </script>
-
-
 </body>
 </html>
