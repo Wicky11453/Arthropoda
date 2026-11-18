@@ -1,0 +1,50 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # The repo is a plain static site, so the Capacitor project is generated here in CI.
+      - name: Create Capacitor project
+        run: |
+          mkdir -p build/www
+          cp -r index.html arthropoda-fotos.json css img scripts build/www/
+          cd build
+          npm init -y
+          npm install @capacitor/core@^8 @capacitor/android@^8
+          npm install -D @capacitor/cli@^8
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "com.wickyenterprises.arthropoda",
+            "appName": "Arthropoda",
+            "webDir": "www"
+          }
+          JSON
+          npx cap add android
+          npx cap sync android
+
+      # The runner image ships the Android SDK (ANDROID_HOME) with licenses accepted.
+      - name: Build debug APK
+        working-directory: build/android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Arthropoda-android-debug
+          path: build/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
